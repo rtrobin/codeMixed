@@ -32,16 +32,16 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                         ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
+parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
+parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N',
-                    help='mini-batch size (default: 256), this is the total '
+                    help='mini-batch size (default: 128), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
@@ -73,6 +73,8 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+parser.add_argument('--log-save', default='log.csv', type=str,
+                    help='path of saved log')
 
 best_acc1 = 0
 
@@ -131,10 +133,10 @@ def main_worker(gpu, ngpus_per_node, args):
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
-        model = models.__dict__[args.arch](pretrained=True)
+        model = models.__dict__[args.arch](pretrained=True, num_classes=10)
     else:
         print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
+        model = models.__dict__[args.arch](num_classes=10)
 
     if args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
@@ -192,19 +194,16 @@ def main_worker(gpu, ngpus_per_node, args):
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    train_dataset = datasets.ImageFolder(
-        traindir,
-        transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        normalize
+    ])
+    train_dataset = datasets.CIFAR10(root=args.data, train=True, download=True, transform=transform_train)
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -215,13 +214,13 @@ def main_worker(gpu, ngpus_per_node, args):
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
+    transform_val = transforms.Compose([
+        transforms.ToTensor(),
+        normalize
+    ])
+    val_dataset = datasets.CIFAR10(root=args.data, train=False, download=True, transform=transform_val)
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
+        val_dataset,
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
@@ -298,6 +297,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         if i % args.print_freq == 0:
             progress.print(i)
 
+    ss = f'{epoch},{batch_time.sum},{top1.avg.item()},{top5.avg.item()}'
+    with open(args.log_save, 'a') as f:
+        f.write(ss)
+
 
 def validate(val_loader, model, criterion, args):
     batch_time = AverageMeter('Time', ':6.3f')
@@ -337,6 +340,10 @@ def validate(val_loader, model, criterion, args):
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
+              
+    ss = f', ,{batch_time.sum},{top1.avg.item()},{top5.avg.item()}\n'
+    with open(args.log_save, 'a') as f:
+        f.write(ss)
 
     return top1.avg
 
@@ -389,8 +396,8 @@ class ProgressMeter(object):
 
 
 def adjust_learning_rate(optimizer, epoch, args):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 30))
+    """Sets the learning rate to the initial LR decayed by 50% every 50 epochs"""
+    lr = args.lr * (0.5 ** (epoch // 50))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
