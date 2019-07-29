@@ -1,5 +1,9 @@
 # This folder contains some pytorch training script
 
+## benchmark
+
+This folder contains a pytorch benchmark script based on Horovod example [code](https://github.com/horovod/horovod/blob/master/examples/pytorch_synthetic_benchmark.py).
+
 ## cifar
 
 This folder contains pytorch cifar training script based on pytorch imagenet training example.
