@@ -24,7 +24,7 @@ def Tracing():
     model = ExportModel()
     model.eval()
 
-    dummy_input = torch.randn(1, 16, 32, 128)
+    dummy_input = torch.randn(1, 16, 32, 128).to('cuda')
     input_names = [ "input" ]
     output_names = [ "output" ]
 
