@@ -31,7 +31,7 @@ def Tracing():
     with torch.no_grad():
         torch.onnx.export(
             model, dummy_input, "model.onnx",
-            opset_version=10,
+            opset_version=10,       # not working for default opset_version(9)
             verbose=True, input_names=input_names, output_names=output_names
         )
     return
@@ -47,10 +47,44 @@ def foo(x, y):
 @torch.jit.script
 def bar(x, y):
     position = int(x.size(1)) - 1
-    return y[:, :position]
+    return y[:, :position, :, :]
+
+
+class UpdateVector(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        # update vector x from y by fixed index 
+        indexTensor = torch.ones((1, 1), dtype=torch.long, device=x.device).fill_(3)
+        x.scatter_(1, indexTensor, y[:, 2].unsqueeze(1))
+
+        return x
+
+def TestUpdate():
+    model = UpdateVector()
+    model.eval()
+
+    x = torch.ones(1, 16, dtype=torch.float32, device='cuda')
+    y = torch.ones(1, 16, dtype=torch.float32, device='cuda').fill_(2)
+
+    z = model(x, y)
+    print(z)
+
+    input_names = [ 'input1', 'input2' ]
+    output_names = [ "output" ]
+
+    with torch.no_grad():
+        torch.onnx.export(
+            model, (x, y), "model.onnx",
+            opset_version=10,       # not working for default opset_version(9)
+            verbose=True, input_names=input_names, output_names=output_names
+        )
+    return
 
 if __name__ == '__main__':
-    Tracing()
+    # Tracing()
+    TestUpdate()
     # print(type(foo))
     # print(foo.code)
     # print(foo(torch.ones(2, 2), torch.ones(2, 2)))
