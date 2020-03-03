@@ -82,15 +82,65 @@ def TestUpdate():
         )
     return
 
+
+class ForModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    @torch.jit.script
+    def loopFunc(x, y):
+        for i in range(2):
+            x = x + y
+        return x
+
+    def forward(self, x):
+        # test loop export
+
+        # Trace for loop
+        x = self.loopFunc(x, x)
+
+        # Script for loop
+        # for i in range(2):
+        #     x = x + x
+
+        return x
+
+def TestLoop():
+    model = ForModel()
+    model.eval()
+
+    dummy_input = torch.randn(1, 1, 2, 4, dtype=torch.float, device='cuda')
+    input_names = [ "input" ]
+    output_names = [ "output" ]
+
+    with torch.no_grad():
+        y = model(dummy_input)
+        print(y)
+
+    with torch.no_grad():
+        torch.onnx.export(
+            model, dummy_input, "model.onnx",
+            opset_version=10,       # not working for default opset_version(9)
+            verbose=True, input_names=input_names, output_names=output_names
+        )
+
+    import onnxruntime
+    x = torch.ones(dummy_input.shape)
+    with torch.no_grad():
+        y = model(x)
+    print(y)
+
+    sess = onnxruntime.InferenceSession('model.onnx')
+    onnx_output = sess.run(None, {
+        sess.get_inputs()[0].name: x.numpy()
+    })
+
+    print(onnx_output)
+
+    return
+
 if __name__ == '__main__':
     # Tracing()
-    TestUpdate()
-    # print(type(foo))
-    # print(foo.code)
-    # print(foo(torch.ones(2, 2), torch.ones(2, 2)))
-
-    # print(type(bar))
-    # print(bar.code)
-    # print(bar(torch.ones(2, 2), torch.ones(3, 3)))
-
-
+    # TestUpdate()
+    TestLoop()
