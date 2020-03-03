@@ -97,10 +97,10 @@ class ForModel(nn.Module):
     def forward(self, x):
         # test loop export
 
-        # Trace for loop
+        # Script for loop
         x = self.loopFunc(x, x)
 
-        # Script for loop
+        # Trace for loop
         # for i in range(2):
         #     x = x + x
 
