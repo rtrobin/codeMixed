@@ -85,11 +85,18 @@ def TestUpdate():
 
 class ForModel(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(ForModel, self).__init__()
+        self.trace_fn = torch.jit.trace(self.TraceloopFunc,
+            example_inputs=(torch.randn(1, 1, 2, 4, dtype=torch.float), torch.randn(1, 1, 2, 4, dtype=torch.float))
+        )
+
+    def ScriptloopFunc(self, x: torch.Tensor, y: torch.Tensor, index: int):
+        for i in range(index):
+            x = x + y
+        return x
 
     @staticmethod
-    @torch.jit.script
-    def loopFunc(x, y):
+    def TraceloopFunc(x, y):
         for i in range(2):
             x = x + y
         return x
@@ -98,11 +105,10 @@ class ForModel(nn.Module):
         # test loop export
 
         # Script for loop
-        x = self.loopFunc(x, x)
+        x = self.ScriptloopFunc(x, x, 2)
 
         # Trace for loop
-        # for i in range(2):
-        #     x = x + x
+        x = self.trace_fn(x, x)
 
         return x
 
@@ -110,19 +116,24 @@ def TestLoop():
     model = ForModel()
     model.eval()
 
-    dummy_input = torch.randn(1, 1, 2, 4, dtype=torch.float, device='cuda')
+    dummy_input = torch.randn(1, 1, 2, 4, dtype=torch.float)
     input_names = [ "input" ]
     output_names = [ "output" ]
 
+    my_script_module = torch.jit.script(model)
+
     with torch.no_grad():
-        y = model(dummy_input)
-        print(y)
+        y1 = model(dummy_input)
+        print(y1)
+        y2 = my_script_module(dummy_input)
+        print(y2)
 
     with torch.no_grad():
         torch.onnx.export(
-            model, dummy_input, "model.onnx",
+            my_script_module, dummy_input, "model.onnx",
             opset_version=10,       # not working for default opset_version(9)
-            verbose=True, input_names=input_names, output_names=output_names
+            verbose=True, input_names=input_names, output_names=output_names,
+            example_outputs=dummy_input
         )
 
     import onnxruntime
