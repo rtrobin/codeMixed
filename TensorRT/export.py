@@ -151,7 +151,58 @@ def TestLoop():
 
     return
 
+class MyelinModel(nn.Module):
+    def __init__(self):
+        super(MyelinModel, self).__init__()
+        self.mask = (torch.randn(4) > 0).to(torch.float)
+        self.oo = torch.ones(4, dtype=torch.float)
+
+        self.update_fn = torch.jit.trace(self.update, [torch.randn(4), torch.randn(4)])
+        self.zz = torch.zeros((1, 4), dtype=torch.int)
+
+    def forward(self, x):
+        ret = self.zz
+        for i in range(4):
+            tmp = x.to(torch.float)
+            tmp = (self.oo - self.mask) * tmp + tmp * self.mask
+            # tmp = tmp * 0.5 + tmp * 0.5
+            tmp = self.update_fn(tmp, tmp)
+            ret = x + tmp.to(torch.int)
+
+        return ret
+
+    @staticmethod
+    def update(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return (x + y) * 0.5
+
+
+def TestMyelin():
+    model = MyelinModel()
+    model.eval()
+
+    dummy_input = torch.randint(10, (1, 4), dtype=torch.int)
+    input_names = [ "input" ]
+    output_names = [ "output" ]
+
+    my_script_module = torch.jit.script(model)
+
+    with torch.no_grad():
+        y1 = model(dummy_input)
+        print(y1)
+        y2 = my_script_module(dummy_input)
+        print(y2)
+
+    with torch.no_grad():
+        torch.onnx.export(
+            my_script_module, dummy_input, "model.onnx",
+            opset_version=10,
+            verbose=True, input_names=input_names, output_names=output_names,
+            example_outputs=dummy_input
+        )
+
+
 if __name__ == '__main__':
     # Tracing()
     # TestUpdate()
-    TestLoop()
+    # TestLoop()
+    TestMyelin()
