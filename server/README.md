@@ -6,7 +6,7 @@ Run the server:
 
 `gunicorn -c gunicorn.py main:app`
 
-Test with 1000 concurrent requests:
+Test with 200 concurrent requests:
 
 `python client.py`
 

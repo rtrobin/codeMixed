@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 import requests
 import time
 from gevent.pool import Pool
@@ -11,7 +14,7 @@ def req(_):
     print(f'req time: {et-st}, {resp.json()}')
 
 def main():
-    req_numbers = [i for i in range(1000)]
+    req_numbers = [i for i in range(200)]
     pool = Pool()
 
     pool.map(req, req_numbers)

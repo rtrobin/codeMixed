@@ -28,9 +28,10 @@ def transform_image(image_bytes):
 
 def get_prediction(image_bytes):
     tensor = transform_image(image_bytes=image_bytes).to(device)
-    outputs = model.forward(tensor)
-    _, y_hat = outputs.max(1)
-    predicted_idx = str(y_hat.item())
+    with torch.no_grad():
+        outputs = model.forward(tensor)
+        _, y_hat = outputs.max(1)
+        predicted_idx = str(y_hat.item())
     return imagenet_class_index[predicted_idx]
 
 
