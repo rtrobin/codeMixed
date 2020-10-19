@@ -10,6 +10,10 @@ Test with 200 concurrent requests:
 
 `python client.py`
 
+## Docker
+
+Using `Dockerfile` to build an inference docker service.
+
 ## notes
 
 Modify `gunicorn.py` to change gunicorn settings. With different worker mode, GPU model instances behave differently.
