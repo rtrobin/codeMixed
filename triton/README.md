@@ -1,6 +1,6 @@
 # Triton example
 
-[Triton Inference Server](!https://github.com/triton-inference-server/server) is a high performance deep learning model inference backend, developed by NVIDIA.
+[Triton Inference Server](https://github.com/triton-inference-server/server) is a high performance deep learning model inference backend, developed by NVIDIA.
 
 Here demonstrates an easy pyTorch model managed by Triton server.
 
