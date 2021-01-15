@@ -1,19 +1,36 @@
 # A simple pyTorch inference server example
 
-## A simple inference server example with pyTorch and flask+gunicorn
+## A simple inference server example with pyTorch and [gunicorn](https://gunicorn.org/)+[FastAPI](https://fastapi.tiangolo.com/)
+
+Requirements:
+
+- python3.9 has better performance
+- python>=3.7 at least
+
+``` bash
+pip install -U fastapi uvicorn[standard] gunicorn
+```
 
 Run the server:
 
-`gunicorn -c gunicorn.py main:app`
+- Worker number can be larger, if memory and GPU memory both available
 
-Test with 200 concurrent requests:
+``` bash
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker
+```
 
-`python client.py`
+Test case:
 
-## Docker
+- [requests](https://requests.readthedocs.io) and [gevent](https://www.gevent.org) required
 
-Using `Dockerfile` to build an inference docker service.
+``` bash
+python client.py --url http://localhost:8000/predict --file dog.jpg --n 16
+```
 
-## notes
+Stress testing:
 
-Modify `gunicorn.py` to change gunicorn settings. With different worker mode, GPU model instances behave differently.
+- using tool [hey](https://github.com/rakyll/hey)
+
+``` bash
+hey -n 10000 -c 64 -m POST -H 'Content-Type: application/json' -D ./input.json http://localhost:8000/predict
+```
