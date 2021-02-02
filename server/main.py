@@ -64,7 +64,7 @@ async def predict(data: Input):
     # loop = asyncio.get_running_loop()
     # img = await loop.run_in_executor(None, load_image, data.image_data)
 
-    if img == None:
+    if img is None:
         ret['message'] = u'图片解析失败'
         ret['code'] = 5202
         return ret
